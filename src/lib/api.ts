@@ -1,0 +1,145 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { Blog, Category } from '@/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<{ message?: string }>) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth-storage');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+    const message = error.response?.data?.message || error.message || 'Something went wrong';
+    return Promise.reject(new Error(message));
+  }
+);
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    api.post('/auth/login', { email, password }),
+  getMe: () => api.get('/auth/me'),
+};
+
+export const blogsApi = {
+  getAll: (params?: Record<string, unknown>) =>
+    api.get('/admin/blogs', { params }),
+
+  getById: (id: string) =>
+    api.get(`/admin/blogs/id/${id}`),
+
+  getPublished: () =>
+    api.get('/blogs', { params: { limit: 100 } }),
+
+  create: (data: Partial<Blog>) =>
+    api.post('/admin/blogs', data),
+
+  update: (id: string, data: Partial<Blog>) =>
+    api.patch(`/admin/blogs/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/admin/blogs/${id}`),
+
+  uploadImage: (file: File, blogId: string, onProgress?: (pct: number) => void) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('blogId', blogId);
+
+    return new Promise<{ imageUrl: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/admin/content/upload/blog-image`);
+
+      const token = localStorage.getItem('token');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const res = JSON.parse(xhr.responseText);
+          resolve({ imageUrl: res.data.imageUrl });
+        } else {
+          reject(new Error(JSON.parse(xhr.responseText)?.message || 'Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+
+  uploadPdf: (file: File, blogId: string, onProgress?: (pct: number) => void) => {
+    const formData = new FormData();
+    formData.append('pdf', file);
+    formData.append('blogId', blogId);
+
+    return new Promise<{ pdfUrl: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/admin/content/upload/blog-pdf`);
+
+      const token = localStorage.getItem('token');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const res = JSON.parse(xhr.responseText);
+          resolve({ pdfUrl: res.data.pdfUrl });
+        } else {
+          reject(new Error(JSON.parse(xhr.responseText)?.message || 'Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+};
+
+export const categoriesApi = {
+  getAll: (params?: { includeInactive?: boolean }) =>
+    api.get('/categories', { params }),
+
+  create: (data: Partial<Category>) =>
+    api.post('/categories', data),
+
+  update: (id: string, data: Partial<Category>) =>
+    api.patch(`/categories/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/categories/${id}`),
+};
+
+export default api;
