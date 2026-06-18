@@ -41,7 +41,7 @@ export default function LoginPage() {
             MJ
           </div>
           <h1 className="text-xl font-bold text-slate-900">MJ Digital Admin</h1>
-          <p className="text-sm text-slate-500 mt-1">Sign in to your account.</p>
+          <p className="text-sm text-slate-500 mt-1">Sign in to your account</p>
         </div>
 
         {/* Form */}
