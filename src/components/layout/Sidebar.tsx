@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, FileText, Tag, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Newspaper, Tag, LogOut } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/blogs', label: 'Blogs', icon: FileText },
+  { href: '/news', label: 'News', icon: Newspaper },
   { href: '/categories', label: 'Categories', icon: Tag },
 ];
 

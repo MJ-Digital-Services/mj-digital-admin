@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { Blog, Category } from '@/types';
+import { Blog, Category, News } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 
@@ -117,6 +117,58 @@ export const blogsApi = {
         if (xhr.status >= 200 && xhr.status < 300) {
           const res = JSON.parse(xhr.responseText);
           resolve({ pdfUrl: res.data.pdfUrl });
+        } else {
+          reject(new Error(JSON.parse(xhr.responseText)?.message || 'Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+  },
+};
+
+export const newsApi = {
+  getAll: (params?: Record<string, unknown>) =>
+    api.get('/admin/news', { params }),
+
+  getById: (id: string) =>
+    api.get(`/admin/news/id/${id}`),
+
+  getPublished: () =>
+    api.get('/news', { params: { limit: 100 } }),
+
+  create: (data: Partial<News>) =>
+    api.post('/admin/news', data),
+
+  update: (id: string, data: Partial<News>) =>
+    api.patch(`/admin/news/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/admin/news/${id}`),
+
+  uploadImage: (file: File, newsId: string, onProgress?: (pct: number) => void) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('newsId', newsId);
+
+    return new Promise<{ imageUrl: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_URL}/admin/content/upload/news-image`);
+
+      const token = localStorage.getItem('token');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const res = JSON.parse(xhr.responseText);
+          resolve({ imageUrl: res.data.imageUrl });
         } else {
           reject(new Error(JSON.parse(xhr.responseText)?.message || 'Upload failed'));
         }
